@@ -16,11 +16,11 @@ CREATE_USERS_TABLE = """CREATE TABLE IF NOT EXISTS users (
                         address VARCHAR (250) NOT NULL,
                         city VARCHAR (100) NOT NULL,
                         state VARCHAR (2) NOT NULL, 
-                        zip MEDIUMINT (255) NOT NULL,
+                        zip INTEGER NOT NULL,
                         user_name VARCHAR (50) NOT NULL,
                         email VARCHAR (50) NOT NULL,
                         password VARCHAR (255) NOT NULL
-                        )"""
+                        );"""
 INSERT_INTO_USERS_TABLE_RETURNING_ID = """INSERT INTO users (
                                         first_name, 
                                         last_name,
@@ -31,11 +31,16 @@ INSERT_INTO_USERS_TABLE_RETURNING_ID = """INSERT INTO users (
                                         user_name, 
                                         email, 
                                         password
-                                    ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s) RETURNING id"""
+                                    ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s) RETURNING id;"""
 GET_USER = "SELECT * FROM users WHERE user_name = %s;"
 CREATE_PRODUCTS_TABLE = (
-    "CREATE TABLE IF NOT EXISTS products (id SERIAL PRIMARY KEY, name VARCHAR(100), description  VARCHAR(250), price NUMBER(5, 2));"
+    "CREATE TABLE IF NOT EXISTS products (id SERIAL PRIMARY KEY, name VARCHAR(100), description VARCHAR(250), price NUMERIC (5, 2));"
 )
+INSERT_INTO_PRODUCTS_TABLE_RETURNING_ID = """INSERT INTO products (
+                                        name, 
+                                        description,
+                                        price
+                                    ) VALUES (%s, %s, %s) RETURNING id;"""
 GET_PRODUCTS = "SELECT * FROM products WHERE name = %s;"
 CREATE_ORDERS_TABLE = (
     "CREATE TABLE orders (id SERIAL PRIMARY KEY, order_status VARCHAR(100), user_id bigint REFERENCES users(id) ON DELETE CASCADE);"
@@ -84,7 +89,6 @@ def login():
             cursor.execute(CREATE_USERS_TABLE)
             cursor.execute(GET_USER, (user_name,))
             account = cursor.fetchone()
-
             if account:
                 password_rs = account['password']
                 token = jwt.encode({
@@ -133,3 +137,23 @@ def register():
                 cursor.execute(INSERT_INTO_USERS_TABLE_RETURNING_ID, (first_name, last_name, address, city, state, zip, user_name, email, generate_password_hash(password)))
                 connection.commit()
                 return {"message": "User successful registered"}, 201
+@app.post("/api/products")
+def create_product():
+    data = request.get_json()
+    name = data['name']
+    description = data['description']
+    price = data['price']
+    with connection:
+        with connection.cursor(cursor_factory=psycopg2.extras.DictCursor) as cursor:
+            cursor.execute(CREATE_PRODUCTS_TABLE)
+            cursor.execute(GET_PRODUCTS, (name,))
+            account = cursor.fetchone()
+            if account:
+                return {"messate": {account}}
+            elif not name:
+                return {"messate": "Order not found!"}
+            else:
+                cursor.execute(INSERT_INTO_PRODUCTS_TABLE_RETURNING_ID, (name, description, price))
+                connection.commit()
+                return {"message": 'Product added!'}, 201
+            
