@@ -3,4 +3,4 @@
 env/
 venv/
 ENV/
-.Flaskenv
+.flaskenv
