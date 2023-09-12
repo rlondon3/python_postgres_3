@@ -43,8 +43,12 @@ INSERT_INTO_PRODUCTS_TABLE_RETURNING_ID = """INSERT INTO products (
                                     ) VALUES (%s, %s, %s) RETURNING id;"""
 GET_PRODUCTS = "SELECT * FROM products WHERE name = %s;"
 CREATE_ORDERS_TABLE = (
-    "CREATE TABLE orders (id SERIAL PRIMARY KEY, order_status VARCHAR(100), user_id bigint REFERENCES users(id) ON DELETE CASCADE);"
+    "CREATE TABLE IF NOT EXISTS orders (id SERIAL PRIMARY KEY, order_status VARCHAR(100), user_id bigint REFERENCES users(id) ON DELETE CASCADE);"
 )
+INSERT_INTO_ORDERS_TABLE_RETURNING_ID = """INSERT INTO orders (
+                                        order_status, 
+                                        user_id
+                                    ) VALUES (%s, %s) RETURNING id;"""
 GET_ORDERS = "SELECT * FROM orders WHERE user_id = %s;"
 CREATE_PRODUCTS_ORDERED_TABLE = (
     "CREATE TABLE products_ordered (id SERIAL PRIMARY KEY, order_id bigint REFERENCES orders(id) ON DELETE CASCADE, products_id bigint REFERNCES products(id) ON DELETE RESTRICT, quantity integer);"
@@ -147,13 +151,30 @@ def create_product():
         with connection.cursor(cursor_factory=psycopg2.extras.DictCursor) as cursor:
             cursor.execute(CREATE_PRODUCTS_TABLE)
             cursor.execute(GET_PRODUCTS, (name,))
-            account = cursor.fetchone()
-            if account:
-                return {"messate": {account}}
+            product = cursor.fetchone()
+            if product:
+                return {"message": data}
             elif not name:
-                return {"messate": "Order not found!"}
+                return {"message": "Product not found!"}
             else:
                 cursor.execute(INSERT_INTO_PRODUCTS_TABLE_RETURNING_ID, (name, description, price))
                 connection.commit()
                 return {"message": 'Product added!'}, 201
-            
+@app.post("/api/orders")
+def create_orders():
+    data = request.get_json()
+    order_status = data['order_status']
+    user_id = data['user_id']
+    with connection:
+        with connection.cursor(cursor_factory=psycopg2.extras.DictCursor) as cursor:
+            cursor.execute(CREATE_ORDERS_TABLE)
+            cursor.execute(GET_ORDERS, (user_id,))
+            order = cursor.fetchone()
+            if order:
+                return {"message": data}
+            elif not id:
+                return {"message": "Order not found!"}
+            else:
+                cursor.execute(INSERT_INTO_ORDERS_TABLE_RETURNING_ID, (order_status, user_id))
+                connection.commit()
+                return {"message": "Order added!"}, 201
